@@ -1,0 +1,60 @@
+{
+  "version": "1.0.0",
+  "description": "Normalized chain-data entities. Indexer (Phase 2) must write these shapes; analysis service reads them.",
+  "entities": {
+    "ContractDeploymentRaw": {
+      "description": "Contract creation before normalization",
+      "fields": {
+        "contract_address": { "type": "string", "format": "ethereum-address" },
+        "transaction_hash": { "type": "string" },
+        "block_number": { "type": "integer" },
+        "timestamp": { "type": "integer", "description": "Unix seconds; 0 if unknown" },
+        "is_verified": { "type": "boolean" }
+      }
+    },
+    "NormalizedContract": {
+      "description": "Camel-case shape used by scoring (see openapi/analysis.yaml)",
+      "fields": {
+        "contractAddress": { "type": "string" },
+        "transactionHash": { "type": "string" },
+        "blockNumber": { "type": "integer" },
+        "timestamp": { "type": "integer" },
+        "isVerified": { "type": "boolean" }
+      }
+    },
+    "ENSProfile": {
+      "fields": {
+        "name": { "type": "string", "nullable": true },
+        "avatar": { "type": "string", "nullable": true },
+        "url": { "type": "string", "nullable": true },
+        "github": { "type": "string", "nullable": true }
+      }
+    }
+  },
+  "ingestion": {
+    "deployments": {
+      "primary": { "provider": "alchemy", "method": "alchemy_getAssetTransfers" },
+      "fallback": { "provider": "etherscan", "action": "txlist" }
+    },
+    "verification": {
+      "provider": "etherscan",
+      "action": "getsourcecode",
+      "batchSize": 5,
+      "delayMs": 250
+    },
+    "ens": {
+      "chainId": 1,
+      "nameLookup": { "provider": "ens-subgraph", "network": "mainnet" },
+      "textRecords": { "provider": "alchemy-rpc", "method": "eth_call" }
+    }
+  },
+  "implementation": {
+    "read": "services/analysis/chain-data/read.js",
+    "liveFallback": "services/analysis/chain-data/deployments.js",
+    "futureIndexer": "services/indexer/ (Rust CLI — backfill command)"
+  },
+  "indexMarker": {
+    "collection": "wallet_deployments",
+    "description": "Row must exist for (chain_id, deployer_address) before analysis uses indexed path"
+  }
+}

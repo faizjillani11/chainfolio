@@ -1,0 +1,54 @@
+{
+  "version": "1.0.0",
+  "points": {
+    "contractDeployment": 5,
+    "verifiedContract": 10,
+    "ensOwnership": 2,
+    "ensMetadata": 3
+  },
+  "caps": {
+    "maxDeploymentsScored": 10,
+    "maxVerifiedScored": 10,
+    "burstWindowSeconds": 604800,
+    "burstThreshold": 3
+  },
+  "time": {
+    "establishedThresholdSeconds": 2592000,
+    "establishedMultiplier": 1.2,
+    "recentBurstMultiplier": 0.8
+  },
+  "tiers": [
+    {
+      "minScore": 0,
+      "label": "No Activity",
+      "description": "No developer activity detected on-chain"
+    },
+    {
+      "minScore": 1,
+      "label": "Early Activity",
+      "description": "Early on-chain deployment activity"
+    },
+    {
+      "minScore": 10,
+      "label": "Active Builder",
+      "description": "Regular smart contract deployment activity"
+    },
+    {
+      "minScore": 30,
+      "label": "Established",
+      "description": "Consistent on-chain deployment history"
+    },
+    {
+      "minScore": 60,
+      "label": "Prolific",
+      "description": "High volume of verified on-chain activity"
+    },
+    {
+      "minScore": 100,
+      "label": "Extensive",
+      "description": "Extensive on-chain deployment history"
+    }
+  ],
+  "disclaimer": "This profile reflects on-chain activity only and does not guarantee developer skill or code quality. Data may be incomplete.",
+  "metadataDisclaimer": "Activity-based profile, not a certification. Reflects on-chain data only."
+}

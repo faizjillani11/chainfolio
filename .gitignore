@@ -1,0 +1,34 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Environment variables ──────────────────────────────────────────────────────
+# .env.example files are intentionally NOT ignored — they document required keys
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# ── Next.js ───────────────────────────────────────────────────────────────────
+.next/
+out/
+next-env.d.ts
+
+# ─── Build artifacts ───────────────────────────────────────────────────────────
+dist/
+build/
+coverage/
+artifacts/
+services/indexer/target/
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+.npmrc
+.DS_Store
+*.pem
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.vercel
+.vscode/

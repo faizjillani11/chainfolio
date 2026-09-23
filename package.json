@@ -1,0 +1,27 @@
+{
+  "name": "chainfolio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "node infra/scripts/dev.js",
+    "start": "node infra/scripts/dev.js",
+    "build": "node packages/scoring-spec/generate.js && npm run build --workspace=@chainfolio/web",
+    "lint": "npm run lint --workspace=@chainfolio/web",
+    "check:env": "node scripts/check-env.js",
+    "generate:scoring": "node packages/scoring-spec/generate.js",
+    "test:scoring": "node --test tests/scoring-parity.test.js",
+    "test": "npm run test:scoring"
+  },
+  "devDependencies": {
+    "@ethereum-attestation-service/eas-sdk": "2.9.0",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.16.0",
+    "tsx": "^4.22.4"
+  }
+}

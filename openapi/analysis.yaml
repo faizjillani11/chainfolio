@@ -1,0 +1,383 @@
+openapi: 3.0.3
+info:
+  title: Chainfolio Analysis API
+  version: 1.1.0
+  description: |
+    Public BFF contract and internal worker contract.
+    Analysis is async: POST enqueues a job, GET polls until complete.
+
+paths:
+  /api/analyze:
+    post:
+      summary: Enqueue wallet analysis (BFF)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalysisRequest"
+      responses:
+        "202":
+          description: Job accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [jobId, status]
+                properties:
+                  jobId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [PENDING]
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/WorkerUnavailable"
+
+  /api/analyze/{jobId}:
+    get:
+      summary: Poll analysis job (BFF)
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Analysis complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisJobSuccess"
+        "206":
+          description: Partial result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisJobSuccess"
+        "202":
+          description: Still processing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisJobPending"
+        "500":
+          description: Job failed
+        "502":
+          $ref: "#/components/responses/WorkerUnavailable"
+
+  /api/profile/{address}:
+    get:
+      summary: Public profile snapshot (BFF)
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^0x[0-9a-fA-F]{40}$"
+        - name: network
+          in: query
+          schema:
+            type: string
+            enum: [mainnet, sepolia]
+      responses:
+        "200":
+          description: Stored profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicProfile"
+        "404":
+          description: No prior analysis for this wallet
+
+  /analyze:
+    post:
+      summary: Enqueue analysis job (worker API)
+      servers:
+        - url: http://localhost:8000
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [address]
+              properties:
+                address:
+                  type: string
+                  pattern: "^0x[0-9a-fA-F]{40}$"
+                network:
+                  type: string
+                  enum: [mainnet, sepolia]
+                  default: mainnet
+                include_ens:
+                  type: boolean
+                  default: false
+      responses:
+        "202":
+          description: Job accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job_id, status]
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [PENDING]
+
+  /result/{jobId}:
+    get:
+      summary: Poll job result (worker API)
+      servers:
+        - url: http://localhost:8000
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobPollResponse"
+
+  /profile/{address}:
+    get:
+      summary: Public profile snapshot (worker API)
+      servers:
+        - url: http://localhost:8000
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^0x[0-9a-fA-F]{40}$"
+        - name: network
+          in: query
+          schema:
+            type: string
+            enum: [mainnet, sepolia]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicProfile"
+        "404":
+          description: Not found
+
+components:
+  schemas:
+    AnalysisRequest:
+      type: object
+      required: [address]
+      properties:
+        address:
+          type: string
+          pattern: "^0x[0-9a-fA-F]{40}$"
+        network:
+          type: string
+          enum: [mainnet, sepolia]
+          default: mainnet
+        includeENS:
+          type: boolean
+          default: false
+
+    AnalysisStage:
+      type: string
+      enum: [queued, deployments, verification, ens, scoring, complete]
+
+    ENSProfile:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        avatar:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        github:
+          type: string
+          nullable: true
+
+    NormalizedContract:
+      type: object
+      required: [contractAddress, transactionHash, blockNumber, timestamp, isVerified]
+      properties:
+        contractAddress:
+          type: string
+        transactionHash:
+          type: string
+        blockNumber:
+          type: integer
+        timestamp:
+          type: integer
+        isVerified:
+          type: boolean
+
+    ReputationBreakdown:
+      type: object
+      properties:
+        contractDeployments:
+          type: integer
+        verifiedContracts:
+          type: integer
+        ensOwnership:
+          type: integer
+        ensMetadata:
+          type: integer
+        timeMultiplierBonus:
+          type: integer
+
+    ReputationProfile:
+      type: object
+      required: [summary, score, breakdown, explanations, warnings]
+      properties:
+        summary:
+          type: object
+        score:
+          type: integer
+        breakdown:
+          $ref: "#/components/schemas/ReputationBreakdown"
+        cappedAt:
+          type: integer
+          nullable: true
+        explanations:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+
+    AnalysisResponse:
+      type: object
+      required: [address, network, deploymentSource, ens, contracts, profile, analyzedAt, includesENS]
+      properties:
+        address:
+          type: string
+        network:
+          type: string
+          enum: [mainnet, sepolia]
+        deploymentSource:
+          type: string
+          enum: [indexed, live]
+        ens:
+          $ref: "#/components/schemas/ENSProfile"
+        contracts:
+          type: array
+          items:
+            $ref: "#/components/schemas/NormalizedContract"
+        profile:
+          $ref: "#/components/schemas/ReputationProfile"
+        analyzedAt:
+          type: integer
+          description: Unix timestamp
+        includesENS:
+          type: boolean
+        isPartial:
+          type: boolean
+
+    PublicProfile:
+      type: object
+      required: [address, network, chainId, score, tier, contractCount, verifiedContractCount, analyzedAt]
+      properties:
+        address:
+          type: string
+        network:
+          type: string
+        chainId:
+          type: integer
+        score:
+          type: integer
+        tier:
+          type: string
+        metricsBreakdown:
+          $ref: "#/components/schemas/ReputationBreakdown"
+        contractCount:
+          type: integer
+        verifiedContractCount:
+          type: integer
+        ensName:
+          type: string
+          nullable: true
+        uniqueInteractors:
+          type: integer
+          nullable: true
+        deploymentSource:
+          type: string
+          enum: [indexed, live]
+          nullable: true
+        analyzedAt:
+          type: string
+          format: date-time
+
+    AnalysisJobPending:
+      type: object
+      required: [jobId, status]
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+          enum: [PENDING]
+        stage:
+          $ref: "#/components/schemas/AnalysisStage"
+
+    AnalysisJobSuccess:
+      type: object
+      required: [jobId, status, data]
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+          enum: [SUCCESS]
+        stage:
+          $ref: "#/components/schemas/AnalysisStage"
+        data:
+          $ref: "#/components/schemas/AnalysisResponse"
+        partial:
+          type: boolean
+
+    JobPollResponse:
+      type: object
+      required: [job_id, status]
+      properties:
+        job_id:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, SUCCESS, FAILURE]
+        stage:
+          $ref: "#/components/schemas/AnalysisStage"
+        result:
+          $ref: "#/components/schemas/AnalysisResponse"
+        error:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Invalid request
+    WorkerUnavailable:
+      description: Worker API is not reachable
+    AnalysisTimeout:
+      description: Job did not complete within the poll window

@@ -1,0 +1,91 @@
+{
+  "version": "1.0.0",
+  "database": "chainfolio",
+  "collections": {
+    "wallet_profiles": {
+      "description": "One document per wallet+chain; tracks first/last analysis",
+      "indexes": [
+        { "keys": { "wallet_address": 1, "chain_id": 1 }, "unique": true, "name": "uq_wallet_chain" }
+      ],
+      "fields": {
+        "wallet_address": { "type": "string", "required": true },
+        "chain_id": { "type": "integer", "required": true },
+        "first_seen_at": { "type": "date" },
+        "last_analyzed_at": { "type": "date" }
+      }
+    },
+    "analysis_results": {
+      "description": "Latest analysis snapshot per wallet+chain",
+      "indexes": [
+        { "keys": { "wallet_address": 1, "chain_id": 1 }, "unique": true, "name": "uq_result_wallet_chain" },
+        { "keys": { "score": -1 }, "name": "idx_score_desc" }
+      ],
+      "fields": {
+        "wallet_address": { "type": "string", "required": true },
+        "chain_id": { "type": "integer", "required": true },
+        "score": { "type": "integer" },
+        "tier": { "type": "string" },
+        "metrics_breakdown": { "type": "object" },
+        "contract_count": { "type": "integer" },
+        "verified_contract_count": { "type": "integer" },
+        "ens_name": { "type": "string", "nullable": true },
+        "unique_interactors": { "type": "integer", "nullable": true },
+        "analyzed_at": { "type": "date" }
+      }
+    },
+    "job_results": {
+      "description": "Async job poll store; TTL 1 hour. In-memory fallback when MongoDB is down.",
+      "indexes": [
+        { "keys": { "created_at": 1 }, "expireAfterSeconds": 3600, "name": "ttl_job_results" }
+      ],
+      "fields": {
+        "job_id": { "type": "string", "required": true },
+        "status": { "type": "string", "enum": ["SUCCESS", "FAILURE"] },
+        "result": { "type": "object", "nullable": true },
+        "error": { "type": "string", "nullable": true },
+        "created_at": { "type": "date" }
+      }
+    },
+    "contract_deployments": {
+      "description": "Indexed contract creations — written by indexer or seed script",
+      "indexes": [
+        { "keys": { "chain_id": 1, "contract_address": 1 }, "unique": true, "name": "uq_chain_contract" },
+        { "keys": { "chain_id": 1, "deployer_address": 1 }, "name": "idx_chain_deployer" }
+      ],
+      "fields": {
+        "chain_id": { "type": "integer", "required": true },
+        "contract_address": { "type": "string", "required": true },
+        "deployer_address": { "type": "string", "required": true },
+        "transaction_hash": { "type": "string" },
+        "block_number": { "type": "integer" },
+        "timestamp": { "type": "integer", "description": "Unix seconds; 0 if unknown" },
+        "indexed_at": { "type": "date" }
+      }
+    },
+    "contract_verifications": {
+      "description": "Etherscan verification cache per contract",
+      "indexes": [
+        { "keys": { "chain_id": 1, "contract_address": 1 }, "unique": true, "name": "uq_chain_contract_verification" }
+      ],
+      "fields": {
+        "chain_id": { "type": "integer", "required": true },
+        "contract_address": { "type": "string", "required": true },
+        "is_verified": { "type": "boolean", "required": true },
+        "checked_at": { "type": "date" }
+      }
+    },
+    "wallet_deployments": {
+      "description": "Marks a deployer+chain as indexed (even when deployment count is zero)",
+      "indexes": [
+        { "keys": { "chain_id": 1, "deployer_address": 1 }, "unique": true, "name": "uq_chain_wallet_deployments" }
+      ],
+      "fields": {
+        "chain_id": { "type": "integer", "required": true },
+        "deployer_address": { "type": "string", "required": true },
+        "contract_count": { "type": "integer" },
+        "indexed_at": { "type": "date", "required": true },
+        "updated_at": { "type": "date" }
+      }
+    }
+  }
+}
